@@ -80,6 +80,21 @@ TF-IDF tokens pushing the LR member's decision — full explainability.
   console with risk dial and evidence panel, verdict tiles, activity
   timeline, verdict distribution, live threat feed.
 
+### Stage 6 — On-device delivery (`extension/`, `phishguard/export/`)
+The linear members (LR + both calibrated SVM folds) compress to pure dot
+products, so `export_js_model.py` prunes the TF-IDF vocabulary to the
+top-weighted n-grams (40K URL / 30K email), re-normalises over the kept
+vocabulary, and emits 2.7 MB of JSON. `extension/lib/engine.js` is an
+exact JavaScript port of the pipeline (char_wb/word TF-IDF, 30 lexical
+features, heuristics, risk blend) — parity with Python is asserted to
+~1e-6 by `extension/tests/parity_test.mjs`, and the pruned model is
+re-evaluated on the held-out test sets (URL 98.49% / email 99.30%
+accuracy; `results/extension_metrics.json`). The Manifest-V3 extension
+scores every navigation in ~1 ms, blocks phishing verdicts behind a
+warning interstitial, outlines dangerous links on pages, and scans pasted
+emails — with **zero network calls**, which is simultaneously the
+privacy story and the scalability story (no server in the loop).
+
 ## Design decisions
 * **Lexical-only URL features** (no WHOIS/domain-age look-ups): keeps
   scoring offline, deterministic and <1 ms; live reputation checks are

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PhishGuard</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3z" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M8.5 12.2l2.4 2.4 4.6-4.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div>
+      <h1>PhishGuard</h1>
+      <p>On-device phishing protection</p>
+    </div>
+  </div>
+  <label class="switch" title="Turn protection on or off">
+    <input type="checkbox" id="toggle" checked>
+    <span class="slider"></span>
+  </label>
+</header>
+
+<section id="page-card" class="card">
+  <h2>This page</h2>
+  <div id="page-verdict" class="verdict-row">
+    <svg class="dial" viewBox="0 0 120 70">
+      <path d="M10 62 A 52 52 0 0 1 110 62" fill="none" stroke="#2c2c2a" stroke-width="9" stroke-linecap="round"/>
+      <path id="dial-arc" d="M10 62 A 52 52 0 0 1 110 62" fill="none" stroke="#0ca30c" stroke-width="9" stroke-linecap="round"/>
+      <text id="dial-num" x="60" y="56" text-anchor="middle">–</text>
+      <text x="60" y="68" text-anchor="middle" class="dial-cap">risk / 100</text>
+    </svg>
+    <div class="verdict-text">
+      <strong id="page-label">Checking…</strong>
+      <span id="page-host" class="mono"></span>
+    </div>
+  </div>
+  <ul id="page-reasons" class="reasons"></ul>
+</section>
+
+<nav class="tabs">
+  <button id="tab-link" class="active">Check a link</button>
+  <button id="tab-email">Check an email</button>
+</nav>
+
+<section id="pane-link" class="card pane">
+  <textarea id="link-input" rows="2" class="mono" spellcheck="false"
+    placeholder="Paste any link to check it before you click"></textarea>
+  <button id="scan-link" class="primary">Scan link</button>
+</section>
+
+<section id="pane-email" class="card pane" hidden>
+  <input id="email-subject" type="text" placeholder="Subject">
+  <textarea id="email-body" rows="4" placeholder="Paste the suspicious email text"></textarea>
+  <input id="email-sender" type="text" class="mono" placeholder="Sender (optional)">
+  <button id="scan-email" class="primary">Scan email</button>
+</section>
+
+<section id="scan-result" class="card" hidden>
+  <div class="verdict-row compact">
+    <span id="result-icon" class="icon"></span>
+    <div class="verdict-text">
+      <strong id="result-label"></strong>
+      <span id="result-score"></span>
+    </div>
+  </div>
+  <ul id="result-reasons" class="reasons"></ul>
+</section>
+
+<footer>
+  <div class="stats">
+    <span><b id="s-scans">0</b> scanned</span>
+    <span class="crit"><b id="s-phish">0</b> phishing</span>
+    <span class="warn"><b id="s-susp">0</b> suspicious</span>
+  </div>
+  <p class="privacy">100% offline — your links and emails never leave this browser.</p>
+</footer>
+
+<script src="popup.js" type="module"></script>
+</body>
+</html>

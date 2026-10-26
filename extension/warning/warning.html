@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhishGuard — dangerous site blocked</title>
+<link rel="stylesheet" href="warning.css">
+</head>
+<body>
+<main>
+  <svg class="shield" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3z" fill="none" stroke="currentColor" stroke-width="1.4"/>
+    <path id="shield-mark" d="M9 9l6 6M15 9l-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>
+
+  <h1 id="title">Dangerous site blocked</h1>
+  <p id="subtitle">PhishGuard's on-device AI rated this page as likely phishing.
+     It may imitate a site you trust to steal passwords or payment details.</p>
+
+  <div class="url-box">
+    <span id="risk-badge">risk –/100</span>
+    <code id="blocked-url"></code>
+  </div>
+
+  <ul id="reasons"></ul>
+
+  <div class="actions">
+    <button id="back" class="primary">Back to safety</button>
+    <button id="proceed" class="ghost">Proceed anyway (not recommended)</button>
+  </div>
+
+  <p class="foot">Scored locally in your browser — this URL was never sent anywhere.</p>
+</main>
+<script src="warning.js"></script>
+</body>
+</html>

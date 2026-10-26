@@ -103,6 +103,17 @@ model families agreeing (ensemble members' individual test metrics are all
 reported); depth/leaf regularisation on trees; `min_df` and `max_features`
 caps on TF-IDF.
 
+### 14b. How does the browser extension run the model without a server?
+Both strong members are linear, so each decision is a dot product:
+`export_js_model.py` exports the TF-IDF vocabulary (pruned to the
+top-weighted 40K/30K n-grams), idf values, scaler statistics, coefficients
+and Platt-calibration parameters as JSON, and `extension/lib/engine.js`
+recomputes the exact same pipeline in JavaScript (~1 ms per URL). The
+pruned model is re-evaluated on the held-out test set (URL 98.49%, email
+99.30% accuracy), and a parity test asserts JS and Python agree to ~1e-6.
+On-device inference is also the privacy feature: no URL or email ever
+leaves the browser.
+
 ### 15. Could an attacker evade PhishGuard?
 Adversarial evasion is possible against any static classifier — e.g.
 hosting on a reputable compromised domain. Mitigations: ensemble of

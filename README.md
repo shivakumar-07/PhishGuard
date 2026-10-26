@@ -6,7 +6,16 @@ PhishGuard detects phishing *before the click*. A hybrid machine-learning
 ensemble (Logistic Regression + Linear SVM + Random Forest / Naive Bayes,
 combined by soft voting) analyses both **URL structure** and **email
 content**, blends the result with an explainable **heuristic rule layer**,
-and streams every verdict to a **live dashboard** over WebSockets.
+and ships two ways:
+
+| 🧩 [Browser extension](extension/) — for everyone | 📊 Dashboard + API — for security teams |
+|---|---|
+| The full detector compiled to 2.7 MB of JSON, scoring in ~1 ms of JavaScript. Blocks phishing pages behind a warning, flags dangerous links on pages, scans pasted emails. **100% offline — no URL ever leaves your browser.** | FastAPI service with the complete ensemble, SQLite scan history, WebSocket live feed, and a real-time monitoring console with explainable verdicts. |
+
+<p align="center">
+  <img src="docs/images/extension_warning.png" width="54%" alt="Extension blocking a phishing page">
+  <img src="docs/images/extension_popup.png" width="26%" alt="Extension popup">
+</p>
 
 ![Dashboard](docs/images/dashboard.png)
 
@@ -14,6 +23,8 @@ and streams every verdict to a **live dashboard** over WebSockets.
 
 | | |
 |---|---|
+| 🧩 **Real product, not a demo** | Chrome/Edge/Brave extension with fully on-device ML — install it and it protects you today |
+| 🔒 **Private by architecture** | the extension makes zero network requests; there is nothing to leak |
 | 🔀 **Hybrid ensemble** | 4 classifier families per channel, soft-voting final verdict (per Karim et al., IEEE Access 2023) |
 | 🌐 **Dual channel** | one unified system for URLs *and* emails |
 | ⚡ **Real-time** | in-memory scoring in ~1–40 ms, WebSocket push to every open dashboard |
@@ -38,7 +49,18 @@ tables, confusion matrices, ROC curves and feature importances are in
 
 ![URL model comparison](results/url_model_comparison.png)
 
+On-device extension models (exported + re-evaluated on the same held-out
+sets): URL **98.49%** acc / F1 0.9522 · email **99.30%** acc / F1 0.9933 —
+see `results/extension_metrics.json` and the JS↔Python parity test
+(`node extension/tests/parity_test.mjs`, agreement ≈ 1e-6).
+
 ## Quick start
+
+**Protect yourself (30 seconds, nothing to install but the extension):**
+open `chrome://extensions` → Developer mode → **Load unpacked** → select
+the [`extension/`](extension/) folder. Full guide: [extension/README.md](extension/README.md).
+
+**Run the full server + dashboard:**
 
 ```bash
 git clone https://github.com/shivakumar-07/PhishGuard.git

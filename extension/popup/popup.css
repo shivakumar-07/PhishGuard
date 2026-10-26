@@ -1,0 +1,107 @@
+:root {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #212120;
+  --ink: #f0efec;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --border: rgba(255, 255, 255, 0.10);
+  --accent: #3987e5;
+  --good: #0ca30c;
+  --warn: #fab219;
+  --crit: #d03b3b;
+  --mono: ui-monospace, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  width: 360px; margin: 0; padding: 12px;
+  background: var(--page); color: var(--ink);
+  font: 13.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+h1, h2 { margin: 0; }
+.mono { font-family: var(--mono); }
+
+header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.brand { display: flex; gap: 10px; align-items: center; }
+.brand svg { width: 30px; height: 30px; color: var(--accent); }
+.brand h1 { font-size: 16px; }
+.brand p { margin: 0; font-size: 11px; color: var(--muted); }
+
+.switch { position: relative; width: 40px; height: 22px; flex: none; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute; inset: 0; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.slider::before {
+  content: ""; position: absolute; width: 16px; height: 16px; left: 2px; top: 2px;
+  border-radius: 50%; background: var(--muted); transition: transform 0.15s, background 0.15s;
+}
+.switch input:checked + .slider { background: rgba(12, 163, 12, 0.25); }
+.switch input:checked + .slider::before { transform: translateX(18px); background: var(--good); }
+.switch input:focus-visible + .slider { outline: 2px solid var(--accent); }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px; margin-bottom: 10px;
+}
+.card h2 { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+
+.verdict-row { display: flex; align-items: center; gap: 12px; }
+.dial { width: 92px; flex: none; }
+#dial-num { font-size: 24px; font-weight: 700; fill: var(--ink); }
+.dial-cap { font-size: 8px; fill: var(--muted); }
+.verdict-text { min-width: 0; }
+.verdict-text strong { font-size: 17px; display: block; }
+.verdict-text span { font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+.v-safe strong { color: var(--good); }
+.v-suspicious strong { color: var(--warn); }
+.v-phishing strong { color: var(--crit); }
+
+.reasons { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.reasons:empty { margin: 0; }
+.reasons li {
+  font-size: 12px; color: var(--ink-2);
+  padding: 5px 8px 5px 10px; border-left: 3px solid var(--muted);
+  background: var(--surface-2); border-radius: 0 5px 5px 0;
+}
+.reasons li.sev-high { border-left-color: var(--crit); }
+.reasons li.sev-medium { border-left-color: var(--warn); }
+.reasons li.sev-low { border-left-color: var(--accent); }
+.reasons li.sev-info { border-left-color: var(--good); }
+
+.tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+.tabs button {
+  flex: 1; background: transparent; color: var(--ink-2); border: 0;
+  padding: 7px 0; font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.tabs button.active { background: var(--surface-2); color: var(--ink); font-weight: 600; }
+
+.pane { display: flex; flex-direction: column; gap: 8px; }
+.pane[hidden] { display: none; }
+.pane input, .pane textarea {
+  background: var(--page); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 7px;
+  padding: 8px 10px; font: inherit; font-size: 12.5px; resize: vertical;
+}
+.pane input:focus-visible, .pane textarea:focus-visible { outline: 2px solid var(--accent); }
+
+.primary {
+  background: var(--accent); color: #fff; border: 0; border-radius: 7px;
+  padding: 8px 0; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer;
+}
+.primary:hover { filter: brightness(1.1); }
+.primary[disabled] { opacity: 0.6; }
+
+.compact .icon { font-size: 22px; }
+#scan-result .verdict-text strong { font-size: 15px; }
+#scan-result .verdict-text span { font-size: 12px; color: var(--ink-2); }
+
+footer { margin-top: 2px; }
+.stats { display: flex; gap: 14px; font-size: 12px; color: var(--muted); }
+.stats b { color: var(--ink); font-weight: 650; }
+.stats .crit b { color: var(--crit); }
+.stats .warn b { color: var(--warn); }
+.privacy { margin: 6px 0 0; font-size: 10.5px; color: var(--muted); }
