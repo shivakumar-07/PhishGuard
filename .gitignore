@@ -1,0 +1,16 @@
+# data (re-downloadable via setup_data.py)
+data/raw/
+data/processed/
+data/phishguard.db
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# misc
+.DS_Store
+nohup.out
+*.log

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhishGuard Console</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%233987e5' d='M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3z'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3z" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M8.5 12.2l2.4 2.4 4.6-4.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div>
+      <h1>PhishGuard</h1>
+      <p class="brand-sub">Hybrid ML phishing detection — URLs &amp; email</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span id="model-badges" class="model-badges"></span>
+    <span class="live-pill" id="live-pill"><span class="dot" id="live-dot"></span><span id="live-label">connecting</span></span>
+  </div>
+</header>
+
+<main class="grid">
+
+  <!-- ============== scan console ============== -->
+  <section class="panel console" aria-labelledby="console-h">
+    <h2 id="console-h">Scan console</h2>
+
+    <div class="mode-switch" role="tablist">
+      <button class="mode-btn active" id="mode-url" role="tab" aria-selected="true">URL</button>
+      <button class="mode-btn" id="mode-email" role="tab" aria-selected="false">Email</button>
+    </div>
+
+    <form id="url-form" class="scan-form">
+      <label for="url-input">Paste a link to check before you click it</label>
+      <textarea id="url-input" rows="2" spellcheck="false" class="mono"
+        placeholder="http://paypal-secure.account-verify.tk/login"></textarea>
+      <div class="form-row">
+        <button type="submit" class="scan-btn">Scan URL</button>
+        <span class="samples">
+          <button type="button" class="sample" data-sample="url-phish">phishy example</button>
+          <button type="button" class="sample" data-sample="url-safe">safe example</button>
+        </span>
+      </div>
+    </form>
+
+    <form id="email-form" class="scan-form" hidden>
+      <label for="email-sender">Sender (optional)</label>
+      <input id="email-sender" type="text" class="mono" placeholder="support@secure-mail.com">
+      <label for="email-subject">Subject</label>
+      <input id="email-subject" type="text" placeholder="Your account has been suspended">
+      <label for="email-body">Message body</label>
+      <textarea id="email-body" rows="6" placeholder="Paste the suspicious email text here"></textarea>
+      <div class="form-row">
+        <button type="submit" class="scan-btn">Scan email</button>
+        <span class="samples">
+          <button type="button" class="sample" data-sample="email-phish">phishy example</button>
+          <button type="button" class="sample" data-sample="email-safe">safe example</button>
+        </span>
+      </div>
+    </form>
+
+    <!-- verdict -->
+    <div id="verdict" class="verdict" hidden>
+      <div class="verdict-head">
+        <svg class="dial" viewBox="0 0 120 70" aria-hidden="true">
+          <path id="dial-track" d="M10 62 A 52 52 0 0 1 110 62" fill="none" stroke="var(--border)" stroke-width="9" stroke-linecap="round"/>
+          <path id="dial-arc"   d="M10 62 A 52 52 0 0 1 110 62" fill="none" stroke="var(--status-good)" stroke-width="9" stroke-linecap="round"/>
+          <text id="dial-num" x="60" y="56" text-anchor="middle">0</text>
+          <text x="60" y="68" text-anchor="middle" class="dial-cap">risk / 100</text>
+        </svg>
+        <div class="verdict-word">
+          <span id="verdict-icon" class="verdict-icon" aria-hidden="true"></span>
+          <div>
+            <strong id="verdict-label">—</strong>
+            <p id="verdict-input" class="mono"></p>
+          </div>
+        </div>
+      </div>
+
+      <dl class="verdict-nums">
+        <div><dt>ML ensemble</dt><dd id="v-ml">—</dd></div>
+        <div><dt>Rule layer</dt><dd id="v-heur">—</dd></div>
+        <div><dt>Latency</dt><dd id="v-lat">—</dd></div>
+      </dl>
+
+      <div class="per-model" id="per-model"></div>
+
+      <div class="evidence">
+        <h3>Why this verdict</h3>
+        <ul id="reasons"></ul>
+        <div id="tokens" class="tokens"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== monitoring ============== -->
+  <section class="panel stats-panel" aria-labelledby="stats-h">
+    <h2 id="stats-h">Monitoring</h2>
+    <div class="tiles">
+      <div class="tile"><span class="tile-num" id="t-total">0</span><span class="tile-cap">scans</span></div>
+      <div class="tile"><span class="tile-num status-critical" id="t-phish">0</span><span class="tile-cap">phishing</span></div>
+      <div class="tile"><span class="tile-num status-warning" id="t-susp">0</span><span class="tile-cap">suspicious</span></div>
+      <div class="tile"><span class="tile-num status-good" id="t-safe">0</span><span class="tile-cap">safe</span></div>
+    </div>
+    <div class="charts">
+      <figure class="chart-card">
+        <figcaption>Scan activity by verdict</figcaption>
+        <div class="chart-box"><canvas id="timeline-chart"></canvas></div>
+      </figure>
+      <figure class="chart-card">
+        <figcaption>Verdict distribution</figcaption>
+        <div class="chart-box"><canvas id="verdict-chart"></canvas></div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============== live feed ============== -->
+  <section class="panel feed-panel" aria-labelledby="feed-h">
+    <h2 id="feed-h">Live threat feed</h2>
+    <div class="table-wrap">
+      <table aria-label="Recent scans">
+        <thead><tr><th>Verdict</th><th>Type</th><th>Input</th><th class="num">Risk</th><th class="num">ML</th></tr></thead>
+        <tbody id="feed-body">
+          <tr class="empty-row"><td colspan="5">No scans yet — run one from the console to start the feed.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <span>PhishGuard · hybrid ensemble (Logistic Regression + Linear SVM + Random Forest) + heuristic rule layer</span>
+  <span id="foot-metrics"></span>
+</footer>
+
+<script src="/static/chart.umd.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
