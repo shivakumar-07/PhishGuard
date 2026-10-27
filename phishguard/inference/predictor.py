@@ -111,6 +111,11 @@ def predict_url(url: str, explain: bool = True) -> dict:
 
     risk = _blend(ml_prob, heur["score"])
 
+    # Brand look-alike domains carry a verdict floor: a disguised or
+    # misspelled famous name on an unknown domain is decisive on its own.
+    if heur.get("risk_floor"):
+        risk = max(risk, heur["risk_floor"])
+
     # Two-factor verdict: a hard "phishing" block requires the rule layer to
     # corroborate the ML (any evidence beyond the not-popular signal). An
     # ML-only alarm on an unknown domain becomes a "suspicious" warning —

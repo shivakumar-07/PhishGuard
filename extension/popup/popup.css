@@ -99,6 +99,34 @@ header { display: flex; align-items: center; justify-content: space-between; mar
 #scan-result .verdict-text strong { font-size: 15px; }
 #scan-result .verdict-text span { font-size: 12px; color: var(--ink-2); }
 
+.ghost-btn {
+  margin-top: 10px; width: 100%;
+  background: transparent; color: var(--ink-2);
+  border: 1px solid var(--border); border-radius: 7px;
+  padding: 7px 0; font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.ghost-btn:hover { color: var(--ink); border-color: var(--muted); }
+.ghost-btn[disabled] { opacity: 0.6; }
+
+.drop {
+  display: flex; flex-direction: column; gap: 6px; text-align: center;
+  border: 1.5px dashed var(--border); border-radius: 9px;
+  padding: 22px 14px; cursor: pointer; color: var(--ink-2);
+}
+.drop:hover { border-color: var(--accent); color: var(--ink); }
+.drop strong { font-size: 14px; color: var(--ink); }
+.drop span { font-size: 12px; color: var(--muted); }
+
+.detail { margin: 8px 0 0; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+
+.advice {
+  margin-top: 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface-2); padding: 10px 12px;
+}
+.advice h3 { font-size: 12px; color: var(--warn); font-weight: 650; margin: 0 0 6px; }
+.advice ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 5px; }
+.advice li { font-size: 12.5px; color: var(--ink-2); }
+
 footer { margin-top: 2px; }
 .stats { display: flex; gap: 14px; font-size: 12px; color: var(--muted); }
 .stats b { color: var(--ink); font-weight: 650; }

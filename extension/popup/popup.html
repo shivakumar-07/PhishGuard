@@ -15,7 +15,7 @@
     </svg>
     <div>
       <h1>PhishGuard</h1>
-      <p>On-device phishing protection</p>
+      <p>On-device scam &amp; phishing protection</p>
     </div>
   </div>
   <label class="switch" title="Turn protection on or off">
@@ -39,11 +39,13 @@
     </div>
   </div>
   <ul id="page-reasons" class="reasons"></ul>
+  <button id="scan-page" class="ghost-btn">Scan this page's text for scams</button>
 </section>
 
 <nav class="tabs">
-  <button id="tab-link" class="active">Check a link</button>
-  <button id="tab-email">Check an email</button>
+  <button id="tab-link" class="active">Link</button>
+  <button id="tab-msg">Message</button>
+  <button id="tab-qr">QR code</button>
 </nav>
 
 <section id="pane-link" class="card pane">
@@ -52,11 +54,21 @@
   <button id="scan-link" class="primary">Scan link</button>
 </section>
 
-<section id="pane-email" class="card pane" hidden>
-  <input id="email-subject" type="text" placeholder="Subject">
-  <textarea id="email-body" rows="4" placeholder="Paste the suspicious email text"></textarea>
-  <input id="email-sender" type="text" class="mono" placeholder="Sender (optional)">
-  <button id="scan-email" class="primary">Scan email</button>
+<section id="pane-msg" class="card pane" hidden>
+  <textarea id="msg-body" rows="5"
+    placeholder="Paste any suspicious SMS, WhatsApp message, or email here"></textarea>
+  <input id="msg-sender" type="text" class="mono" placeholder="Sender (optional — number or email)">
+  <button id="scan-msg" class="primary">Analyze message</button>
+</section>
+
+<section id="pane-qr" class="card pane" hidden>
+  <label for="qr-file" class="drop">
+    <strong>Check a QR before you pay</strong>
+    <span>Tap to choose a photo or screenshot of the QR code.
+      Decoded and checked on your device — never uploaded.</span>
+  </label>
+  <input id="qr-file" type="file" accept="image/*" hidden>
+  <canvas id="qr-canvas" hidden></canvas>
 </section>
 
 <section id="scan-result" class="card" hidden>
@@ -67,7 +79,12 @@
       <span id="result-score"></span>
     </div>
   </div>
+  <p id="result-detail" class="detail" hidden></p>
   <ul id="result-reasons" class="reasons"></ul>
+  <div id="advice" class="advice" hidden>
+    <h3>What you should do</h3>
+    <ul id="advice-list"></ul>
+  </div>
 </section>
 
 <footer>
@@ -76,9 +93,10 @@
     <span class="crit"><b id="s-phish">0</b> phishing</span>
     <span class="warn"><b id="s-susp">0</b> suspicious</span>
   </div>
-  <p class="privacy">100% offline — your links and emails never leave this browser.</p>
+  <p class="privacy">100% offline — links, messages and QR photos never leave this browser.</p>
 </footer>
 
+<script src="../lib/jsQR.js"></script>
 <script src="popup.js" type="module"></script>
 </body>
 </html>

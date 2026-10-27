@@ -24,22 +24,33 @@ so searching "sbi online login" can't trip the detector on any site.
 by `phishguard/export/export_js_model.py`, which exports the model and
 re-evaluates the exact pruned form the extension runs)*
 
-## What it does
+## What it does (v3 "Scam Shield")
 
 - **Blocks phishing pages before they load** — every navigation is scored
   locally; a phishing verdict swaps the page for a warning interstitial
   with the evidence and a "proceed anyway" escape hatch (per-session).
-- **Badge on every page** — green `OK`, or the risk score on a yellow/red
-  badge.
+- **Catches look-alike domains** — `paypa1.com`, `arnazon.com`,
+  `paypal.support`: homoglyph normalisation + edit-distance analysis
+  against famous brands, with a hard verdict floor.
+- **Scam Message Analyzer** — paste any SMS/WhatsApp/email: identifies the
+  scam family (bank/KYC block, OTP theft, lottery, job-fee, investment,
+  courier/customs fee, utility threat, tech support, sextortion, family
+  impersonation) and gives concrete *what-to-do* advice for that scam.
+- **QR checker with UPI decoding** — photo/screenshot of any QR: shows in
+  plain words **who the payment actually goes to** (payee name, VPA,
+  amount), flags malformed or bait-and-switch QRs, and scans URL QRs
+  through the full pipeline. Decoded entirely on your device.
+- **Password-entry guard** — a gentle, dismissable banner when you start
+  typing a password on a little-known site.
+- **Scan this page** — one click checks the page's visible text for scam
+  language.
 - **Marks dangerous links on the page** — confirmed-phishing links get a
   red outline and an explanatory tooltip (conservative by design: only
   "phishing" verdicts are marked, never "suspicious").
 - **Right-click → "Scan link with PhishGuard"** — full report for any link
   without visiting it.
-- **Popup console** — verdict for the current page with risk dial and
-  evidence, paste-a-link scanner, and a paste-an-email scanner.
-- **Protection toggle & local stats** — scans / phishing / suspicious
-  counters, stored only in your browser.
+- **Badge, toggle & local stats** — green `OK` or risk score per tab;
+  counters stored only in your browser.
 
 ## Install (Chrome, Edge, Brave — any Chromium browser)
 

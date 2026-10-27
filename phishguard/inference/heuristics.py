@@ -31,6 +31,68 @@ from phishguard.features.url_features import (SHORTENER_DOMAINS,
 
 _IP_HOST_RE = re.compile(r"^(\d{1,3}\.){3}\d{1,3}$")
 
+# Famous names attackers imitate with misspellings / look-alike characters.
+TYPO_BRANDS = [
+    "google", "gmail", "youtube", "facebook", "instagram", "whatsapp", "twitter",
+    "linkedin", "microsoft", "outlook", "office", "windows", "apple", "icloud",
+    "amazon", "netflix", "spotify", "paypal", "walmart", "dropbox", "adobe",
+    "telegram", "snapchat", "tiktok", "discord", "github", "reddit", "wikipedia",
+    "yahoo", "chrome", "android", "samsung", "mastercard", "chase", "citibank",
+    "wellsfargo", "barclays", "santander", "americanexpress", "westernunion",
+    "moneygram", "coinbase", "binance", "blockchain", "metamask", "flipkart",
+    "paytm", "phonepe", "myntra", "snapdeal", "irctc", "makemytrip", "zomato",
+    "swiggy", "hdfcbank", "icicibank", "axisbank", "kotak", "onlinesbi",
+    "airtel", "vodafone", "incometax", "uidai", "bluedart", "delhivery",
+    "indiapost", "fedex", "aramex", "interac", "venmo", "zelle", "cashapp",
+    "steam", "roblox", "fortnite", "booking", "airbnb", "expedia", "aliexpress",
+]
+
+_HOMOGLYPHS = str.maketrans({"0": "o", "1": "l", "3": "e", "4": "a", "5": "s",
+                             "6": "b", "7": "t", "8": "b", "9": "g",
+                             "@": "a", "$": "s"})
+
+
+def _de_homoglyph(s: str) -> str:
+    return s.translate(_HOMOGLYPHS).replace("rn", "m").replace("vv", "w")
+
+
+def _edit_distance(a: str, b: str) -> int:
+    """Optimal-string-alignment distance, effectively capped at small values."""
+    if abs(len(a) - len(b)) > 2:
+        return 3
+    la, lb = len(a), len(b)
+    d = [[i + j if i * j == 0 else 0 for j in range(lb + 1)] for i in range(la + 1)]
+    for i in range(1, la + 1):
+        for j in range(1, lb + 1):
+            cost = 0 if a[i - 1] == b[j - 1] else 1
+            d[i][j] = min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost)
+            if i > 1 and j > 1 and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]:
+                d[i][j] = min(d[i][j], d[i - 2][j - 2] + 1)
+    return d[la][lb]
+
+
+def look_alike(reg: str) -> dict | None:
+    """Look-alike analysis of the registered domain's core label (unknown tier)."""
+    core = reg.split(".")[0] if reg else ""
+    if len(core) < 4:
+        return None
+    norm = _de_homoglyph(core)
+    for brand in TYPO_BRANDS:
+        if core == brand:
+            return {"weight": 30, "severity": "high", "floor": 72,
+                    "rule": f"Official-looking name '{brand}' on an unofficial domain ending"}
+        if norm == brand:
+            return {"weight": 35, "severity": "high", "floor": 72,
+                    "rule": f"Disguised spelling of '{brand}' using look-alike characters"}
+        if len(brand) >= 5 and _edit_distance(core, brand) == 1:
+            return {"weight": 30, "severity": "high", "floor": 68,
+                    "rule": f"One-letter-off misspelling of '{brand}'"}
+        if (len(brand) >= 5 and len(core) > len(brand)
+                and re.search(rf"(^|[-_0-9]){re.escape(brand)}([-_0-9]|$)", core)):
+            return {"weight": 25, "severity": "high", "floor": 55,
+                    "rule": f"Brand '{brand}' embedded in an unofficial domain name"}
+    return None
+
 
 def _rule(reasons: list, score: float, weight: float, reason: str, severity: str) -> float:
     reasons.append({"rule": reason, "severity": severity, "weight": weight})
@@ -86,7 +148,12 @@ def score_url(url: str) -> dict:
                 break
 
     # ---- pattern rules: unknown domains only ------------------------------
+    risk_floor = 0
     if tier == "unknown":
+        la = look_alike(reg)
+        if la:
+            score = _rule(reasons, score, la["weight"], la["rule"], la["severity"])
+            risk_floor = la["floor"]
         if any(host == s or host.endswith("." + s) for s in SHORTENER_DOMAINS):
             score = _rule(reasons, score, 15, "Link-shortener domain hides the real destination", "medium")
         if tld in SUSPICIOUS_TLDS:
@@ -119,7 +186,7 @@ def score_url(url: str) -> dict:
                         "severity": "info", "weight": 0})
 
     return {"score": min(score, 100.0), "reasons": reasons, "tier": tier,
-            "trusted_domain": tier != "unknown"}
+            "trusted_domain": tier != "unknown", "risk_floor": risk_floor}
 
 
 def score_email(subject: str, body: str, sender: str = "") -> dict:

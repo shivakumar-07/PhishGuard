@@ -24,6 +24,7 @@ and ships two ways:
 | | |
 |---|---|
 | 🧩 **Real product, not a demo** | Chrome/Edge/Brave extension with fully on-device ML — install it and it protects you today |
+| 🛡️ **Scam Shield (v3)** | names the scam (KYC block, job fee, courier fee, OTP theft, …) and tells you what to do; look-alike-domain detection; QR/UPI payment checker; password-entry guard; page-text scan |
 | 🔒 **Private by architecture** | the extension makes zero network requests; there is nothing to leak |
 | 🔀 **Hybrid ensemble** | 4 classifier families per channel, soft-voting final verdict (per Karim et al., IEEE Access 2023) |
 | 🌐 **Dual channel** | one unified system for URLs *and* emails |

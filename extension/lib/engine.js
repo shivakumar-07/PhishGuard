@@ -11,6 +11,8 @@
  * Parity with the Python export is asserted by tests/parity_test.mjs.
  */
 
+import { analyzeScam } from "./scamintel.js";
+
 // ------------------------------------------------------------ lexicons
 export const SUSPICIOUS_WORDS = [
   "login", "signin", "sign-in", "verify", "verification", "secure", "security",
@@ -55,6 +57,72 @@ export const TRUSTED_DOMAINS = new Set([
   // bank.in is the RBI/NPCI-mandated domain space for Indian banks (2025+).
   "bank.in", "fin.in", "gov.in", "nic.in", "ac.in", "edu",
 ]);
+
+// Famous names attackers imitate with misspellings / look-alike characters.
+export const TYPO_BRANDS = [
+  "google", "gmail", "youtube", "facebook", "instagram", "whatsapp", "twitter",
+  "linkedin", "microsoft", "outlook", "office", "windows", "apple", "icloud",
+  "amazon", "netflix", "spotify", "paypal", "walmart", "dropbox", "adobe",
+  "telegram", "snapchat", "tiktok", "discord", "github", "reddit", "wikipedia",
+  "yahoo", "chrome", "android", "samsung", "mastercard", "chase", "citibank",
+  "wellsfargo", "barclays", "santander", "americanexpress", "westernunion",
+  "moneygram", "coinbase", "binance", "blockchain", "metamask", "flipkart",
+  "paytm", "phonepe", "myntra", "snapdeal", "irctc", "makemytrip", "zomato",
+  "swiggy", "hdfcbank", "icicibank", "axisbank", "kotak", "onlinesbi",
+  "airtel", "vodafone", "incometax", "uidai", "bluedart", "delhivery",
+  "indiapost", "fedex", "aramex", "interac", "venmo", "zelle", "cashapp",
+  "steam", "roblox", "fortnite", "booking", "airbnb", "expedia", "aliexpress",
+];
+
+const HOMOGLYPHS = { "0": "o", "1": "l", "3": "e", "4": "a", "5": "s",
+                     "6": "b", "7": "t", "8": "b", "9": "g", "@": "a", "$": "s" };
+
+export function deHomoglyph(s) {
+  let out = "";
+  for (const ch of s) out += HOMOGLYPHS[ch] || ch;
+  return out.replace(/rn/g, "m").replace(/vv/g, "w");
+}
+
+/** Optimal-string-alignment (Damerau-Levenshtein) distance, capped at 2. */
+export function editDistance(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 3;
+  const la = a.length, lb = b.length;
+  const d = Array.from({ length: la + 1 }, (_, i) => [i, ...Array(lb).fill(0)]);
+  for (let j = 0; j <= lb; j++) d[0][j] = j;
+  for (let i = 1; i <= la; i++) {
+    for (let j = 1; j <= lb; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return d[la][lb];
+}
+
+/** Look-alike analysis of the registered domain's core label.
+ *  Returns {rule, severity, weight} or null. Only called for unknown tier. */
+export function lookAlike(reg) {
+  const core = (reg.split(".")[0] || "");
+  if (core.length < 4) return null;
+  const norm = deHomoglyph(core);
+  for (const brand of TYPO_BRANDS) {
+    if (core === brand)
+      return { weight: 30, severity: "high", floor: 72,
+               rule: `Official-looking name '${brand}' on an unofficial domain ending` };
+    if (norm === brand)
+      return { weight: 35, severity: "high", floor: 72,
+               rule: `Disguised spelling of '${brand}' using look-alike characters` };
+    if (brand.length >= 5 && editDistance(core, brand) === 1)
+      return { weight: 30, severity: "high", floor: 68,
+               rule: `One-letter-off misspelling of '${brand}'` };
+    if (brand.length >= 5 && core.length > brand.length &&
+        new RegExp(`(^|[-_0-9])${brand}([-_0-9]|$)`).test(core))
+      return { weight: 25, severity: "high", floor: 55,
+               rule: `Brand '${brand}' embedded in an unofficial domain name` };
+  }
+  return null;
+}
 
 const ML_WEIGHT = 0.75;
 const HEURISTIC_WEIGHT = 0.25;
@@ -417,7 +485,10 @@ export function heuristicsUrl(url) {
   }
 
   // ---- pattern rules: unknown domains only ------------------------------
+  let riskFloor = 0;
   if (tier === "unknown") {
+    const la = lookAlike(reg);
+    if (la) { score = rule(reasons, score, la.weight, la.rule, la.severity); riskFloor = la.floor; }
     if (SHORTENER_DOMAINS.some((s) => host === s || host.endsWith("." + s)))
       score = rule(reasons, score, 15, "Link-shortener domain hides the real destination", "medium");
     if (SUSPICIOUS_TLDS.includes(tld))
@@ -449,7 +520,8 @@ export function heuristicsUrl(url) {
     reasons.push({ rule: `'${reg}' is among the world's 1M most-visited websites`,
                    severity: "info", weight: 0 });
 
-  return { score: Math.min(score, 100), reasons, tier, trusted: tier !== "unknown" };
+  return { score: Math.min(score, 100), reasons, tier,
+           trusted: tier !== "unknown", riskFloor };
 }
 
 const URGENCY = ["urgent", "immediately", "act now", "expire", "expiring", "suspended",
@@ -526,6 +598,10 @@ export function scanUrl(model, url) {
   else if (heur.tier === "popular") ml = Math.min(p, 0.30);
   let risk = Math.round((ML_WEIGHT * ml * 100 + HEURISTIC_WEIGHT * heur.score) * 100) / 100;
 
+  // Brand look-alike domains carry a verdict floor: a disguised or
+  // misspelled famous name on an unknown domain is decisive on its own.
+  if (heur.riskFloor) risk = Math.max(risk, heur.riskFloor);
+
   // Two-factor verdict: ML alone never hard-blocks. An unknown domain with
   // no corroborating rule evidence is downgraded to a "suspicious" warning.
   if (heur.tier === "unknown" && heur.score <= 8 && risk >= THRESHOLD_PHISHING) {
@@ -549,12 +625,21 @@ export function scanEmail(urlModelUnused, emailModel, subject, body, sender) {
   const t0 = Date.now();
   const { p, perModel } = mlScoreEmail(emailModel, subject, body);
   const heur = heuristicsEmail(subject, body, sender);
-  const risk = Math.round((ML_WEIGHT * p * 100 + HEURISTIC_WEIGHT * heur.score) * 100) / 100;
+  const intel = analyzeScam(subject, body);
+  const heurScore = Math.min(heur.score + intel.boost, 100);
+  if (intel.category)
+    heur.reasons.unshift({
+      rule: `Matches known scam pattern: ${intel.label} (${intel.hits.slice(0, 3).join("; ")})`,
+      severity: "high", weight: intel.boost,
+    });
+  const risk = Math.round((ML_WEIGHT * p * 100 + HEURISTIC_WEIGHT * heurScore) * 100) / 100;
   return {
     type: "email", input: (subject || "(no subject)").slice(0, 120),
     verdict: verdictOf(risk), risk_score: risk,
-    ml_probability: Math.round(p * 1e4) / 1e4, heuristic_score: heur.score,
+    ml_probability: Math.round(p * 1e4) / 1e4, heuristic_score: heurScore,
     per_model: perModel, reasons: heur.reasons,
+    scam_category: intel.category, scam_label: intel.label || null,
+    advice: intel.advice || null,
     latency_ms: Date.now() - t0,
   };
 }

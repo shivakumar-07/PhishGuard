@@ -139,6 +139,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         sendResponse({ results });
         break;
       }
+      case "myTabVerdict": {
+        const tabId = _sender && _sender.tab ? _sender.tab.id : -1;
+        sendResponse({ result: tabVerdicts.get(tabId) || null });
+        break;
+      }
       case "getTabVerdict": {
         const { stats = null } = await chrome.storage.local.get("stats");
         sendResponse({
