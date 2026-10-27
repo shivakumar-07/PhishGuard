@@ -105,7 +105,7 @@ def predict_url(url: str, explain: bool = True) -> dict:
 
     # trusted allowlisted domains get a strong benign prior
     if heur["trusted_domain"]:
-        ml_prob = min(ml_prob, 0.25)
+        ml_prob = min(ml_prob, 0.15)
 
     risk = _blend(ml_prob, heur["score"])
     result = {

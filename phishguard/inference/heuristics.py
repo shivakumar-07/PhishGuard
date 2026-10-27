@@ -50,6 +50,7 @@ def score_url(url: str) -> dict:
     trusted = reg in config.TRUSTED_DOMAINS or any(
         reg.endswith("." + t) or reg == t for t in config.TRUSTED_DOMAINS)
 
+    # structural rules — always active, even on trusted domains
     if _IP_HOST_RE.match(host):
         score = _rule(reasons, score, 35, "URL uses a raw IP address instead of a domain name", "high")
     if host.startswith("xn--") or ".xn--" in host:
@@ -58,23 +59,29 @@ def score_url(url: str) -> dict:
         score = _rule(reasons, score, 25, "'@' symbol in URL — browser ignores everything before it", "high")
     if port not in (None, 80, 443):
         score = _rule(reasons, score, 15, f"Non-standard port {port if port != -1 else '(malformed)'}", "medium")
-    if any(host == s or host.endswith("." + s) for s in SHORTENER_DOMAINS):
-        score = _rule(reasons, score, 15, "Link-shortener domain hides the real destination", "medium")
-    if tld in SUSPICIOUS_TLDS:
-        score = _rule(reasons, score, 15, f"Suspicious top-level domain '.{tld}'", "medium")
-    if max(host.count(".") - 1, 0) >= 3:
-        score = _rule(reasons, score, 12, "Excessive number of subdomains", "medium")
-    if "-" in reg.split(".")[0] and not trusted:
-        score = _rule(reasons, score, 8, "Hyphenated registered domain", "low")
+    if "//" in (parsed.path or ""):
+        score = _rule(reasons, score, 10, "Double slash inside URL path (redirect trick)", "medium")
 
-    sus_hits = [w for w in SUSPICIOUS_WORDS if w in lower]
-    if len(sus_hits) >= 2:
-        score = _rule(reasons, score, 15,
-                      f"Multiple phishing keywords in URL: {', '.join(sus_hits[:4])}", "medium")
-    elif len(sus_hits) == 1:
-        score = _rule(reasons, score, 7, f"Phishing keyword in URL: '{sus_hits[0]}'", "low")
-
+    # pattern rules — suppressed on trusted registered domains, where search
+    # queries and tracking parameters legitimately contain keywords, brand
+    # names and very long URLs (e.g. a Bing search for "sbi online login")
     if not trusted:
+        if any(host == s or host.endswith("." + s) for s in SHORTENER_DOMAINS):
+            score = _rule(reasons, score, 15, "Link-shortener domain hides the real destination", "medium")
+        if tld in SUSPICIOUS_TLDS:
+            score = _rule(reasons, score, 15, f"Suspicious top-level domain '.{tld}'", "medium")
+        if max(host.count(".") - 1, 0) >= 3:
+            score = _rule(reasons, score, 12, "Excessive number of subdomains", "medium")
+        if "-" in reg.split(".")[0]:
+            score = _rule(reasons, score, 8, "Hyphenated registered domain", "low")
+
+        sus_hits = [w for w in SUSPICIOUS_WORDS if w in lower]
+        if len(sus_hits) >= 2:
+            score = _rule(reasons, score, 15,
+                          f"Multiple phishing keywords in URL: {', '.join(sus_hits[:4])}", "medium")
+        elif len(sus_hits) == 1:
+            score = _rule(reasons, score, 7, f"Phishing keyword in URL: '{sus_hits[0]}'", "low")
+
         sub_and_path = (host[: -len(reg)] + " " + (parsed.path or "") + " " + (parsed.query or "")).lower()
         for brand in BRAND_NAMES:
             if brand not in reg and brand in sub_and_path:
@@ -83,12 +90,10 @@ def score_url(url: str) -> dict:
                               "high")
                 break
 
-    if "//" in (parsed.path or ""):
-        score = _rule(reasons, score, 10, "Double slash inside URL path (redirect trick)", "medium")
-    if len(url) > 100:
-        score = _rule(reasons, score, 8, f"Unusually long URL ({len(url)} characters)", "low")
-    if ("https" in host) or ("http" in (parsed.path or "").lower()):
-        score = _rule(reasons, score, 12, "'http(s)' token embedded in domain/path to fake security", "medium")
+        if len(url) > 100:
+            score = _rule(reasons, score, 8, f"Unusually long URL ({len(url)} characters)", "low")
+        if ("https" in host) or ("http" in (parsed.path or "").lower()):
+            score = _rule(reasons, score, 12, "'http(s)' token embedded in domain/path to fake security", "medium")
 
     if trusted and not reasons:
         reasons.append({"rule": f"Registered domain '{reg}' is on the trusted allowlist",

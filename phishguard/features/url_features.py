@@ -81,7 +81,7 @@ def _registered_domain(hostname: str) -> str:
     parts = hostname.split(".")
     if len(parts) <= 2:
         return hostname
-    cc_slds = {"co", "com", "org", "net", "gov", "ac", "edu"}
+    cc_slds = {"co", "com", "org", "net", "gov", "ac", "edu", "bank", "fin"}
     if parts[-2] in cc_slds and len(parts[-1]) == 2:
         return ".".join(parts[-3:])
     return ".".join(parts[-2:])

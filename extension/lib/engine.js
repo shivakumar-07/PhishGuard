@@ -37,14 +37,23 @@ export const SUSPICIOUS_TLDS = [
 ];
 
 export const TRUSTED_DOMAINS = new Set([
-  "google.com", "youtube.com", "facebook.com", "microsoft.com", "apple.com",
-  "amazon.com", "wikipedia.org", "github.com", "linkedin.com", "twitter.com",
+  // global
+  "google.com", "google.co.in", "youtube.com", "facebook.com",
+  "microsoft.com", "bing.com", "msn.com", "apple.com", "amazon.com",
+  "amazon.in", "wikipedia.org", "github.com", "linkedin.com", "twitter.com",
   "x.com", "instagram.com", "netflix.com", "office.com", "live.com",
-  "yahoo.com", "paypal.com", "dropbox.com", "adobe.com", "zoom.us",
-  "whatsapp.com", "telegram.org", "reddit.com", "stackoverflow.com",
-  "mozilla.org", "cloudflare.com", "openai.com", "anthropic.com",
-  "flipkart.com", "irctc.co.in", "sbi.co.in", "onlinesbi.sbi", "hdfcbank.com",
-  "icicibank.com", "gov.in", "nic.in", "ac.in", "edu",
+  "yahoo.com", "duckduckgo.com", "paypal.com", "dropbox.com", "adobe.com",
+  "zoom.us", "whatsapp.com", "telegram.org", "reddit.com",
+  "stackoverflow.com", "mozilla.org", "cloudflare.com", "openai.com",
+  "chatgpt.com", "anthropic.com", "claude.ai", "spotify.com",
+  "discord.com", "slack.com", "canva.com", "ebay.com",
+  // India
+  "flipkart.com", "irctc.co.in", "rbi.org.in", "npci.org.in",
+  "sbi.co.in", "onlinesbi.sbi", "hdfcbank.com", "icicibank.com",
+  "axisbank.com", "kotak.com", "pnbindia.in",
+  // restricted registries: only verified institutions can register here.
+  // bank.in is the RBI/NPCI-mandated domain space for Indian banks (2025+).
+  "bank.in", "fin.in", "gov.in", "nic.in", "ac.in", "edu",
 ]);
 
 const ML_WEIGHT = 0.75;
@@ -100,7 +109,7 @@ export function parseUrl(norm) {
 export function registeredDomain(hostname) {
   const parts = hostname.split(".");
   if (parts.length <= 2) return hostname;
-  const ccSlds = new Set(["co", "com", "org", "net", "gov", "ac", "edu"]);
+  const ccSlds = new Set(["co", "com", "org", "net", "gov", "ac", "edu", "bank", "fin"]);
   if (ccSlds.has(parts[parts.length - 2]) && parts[parts.length - 1].length === 2)
     return parts.slice(-3).join(".");
   return parts.slice(-2).join(".");
@@ -313,6 +322,7 @@ export function heuristicsUrl(url) {
   const trusted = TRUSTED_DOMAINS.has(reg) ||
     [...TRUSTED_DOMAINS].some((t) => reg.endsWith("." + t) || reg === t);
 
+  // structural rules — always active, even on trusted domains
   if (IP_RE.test(host))
     score = rule(reasons, score, 35, "URL uses a raw IP address instead of a domain name", "high");
   if (host.startsWith("xn--") || host.includes(".xn--"))
@@ -321,22 +331,28 @@ export function heuristicsUrl(url) {
     score = rule(reasons, score, 25, "'@' symbol in URL — browser ignores everything before it", "high");
   if (parsed.port !== null && parsed.port !== 80 && parsed.port !== 443)
     score = rule(reasons, score, 15, `Non-standard port ${parsed.port === -1 ? "(malformed)" : parsed.port}`, "medium");
-  if (SHORTENER_DOMAINS.some((s) => host === s || host.endsWith("." + s)))
-    score = rule(reasons, score, 15, "Link-shortener domain hides the real destination", "medium");
-  if (SUSPICIOUS_TLDS.includes(tld))
-    score = rule(reasons, score, 15, `Suspicious top-level domain '.${tld}'`, "medium");
-  if (Math.max(countChar(host, ".") - 1, 0) >= 3)
-    score = rule(reasons, score, 12, "Excessive number of subdomains", "medium");
-  if (reg.split(".")[0].includes("-") && !trusted)
-    score = rule(reasons, score, 8, "Hyphenated registered domain", "low");
+  if ((parsed.path || "").includes("//"))
+    score = rule(reasons, score, 10, "Double slash inside URL path (redirect trick)", "medium");
 
-  const hits = SUSPICIOUS_WORDS.filter((w) => lower.includes(w));
-  if (hits.length >= 2)
-    score = rule(reasons, score, 15, `Multiple phishing keywords in URL: ${hits.slice(0, 4).join(", ")}`, "medium");
-  else if (hits.length === 1)
-    score = rule(reasons, score, 7, `Phishing keyword in URL: '${hits[0]}'`, "low");
-
+  // pattern rules — suppressed on trusted registered domains, where search
+  // queries and tracking parameters legitimately contain keywords, brand
+  // names and very long URLs (e.g. a Bing search for "sbi online login")
   if (!trusted) {
+    if (SHORTENER_DOMAINS.some((s) => host === s || host.endsWith("." + s)))
+      score = rule(reasons, score, 15, "Link-shortener domain hides the real destination", "medium");
+    if (SUSPICIOUS_TLDS.includes(tld))
+      score = rule(reasons, score, 15, `Suspicious top-level domain '.${tld}'`, "medium");
+    if (Math.max(countChar(host, ".") - 1, 0) >= 3)
+      score = rule(reasons, score, 12, "Excessive number of subdomains", "medium");
+    if (reg.split(".")[0].includes("-"))
+      score = rule(reasons, score, 8, "Hyphenated registered domain", "low");
+
+    const hits = SUSPICIOUS_WORDS.filter((w) => lower.includes(w));
+    if (hits.length >= 2)
+      score = rule(reasons, score, 15, `Multiple phishing keywords in URL: ${hits.slice(0, 4).join(", ")}`, "medium");
+    else if (hits.length === 1)
+      score = rule(reasons, score, 7, `Phishing keyword in URL: '${hits[0]}'`, "low");
+
     const subPath = (host.slice(0, Math.max(host.length - reg.length, 0)) + " " +
                      (parsed.path || "") + " " + (parsed.query || "")).toLowerCase();
     for (const brand of BRAND_NAMES) {
@@ -346,14 +362,12 @@ export function heuristicsUrl(url) {
         break;
       }
     }
-  }
 
-  if ((parsed.path || "").includes("//"))
-    score = rule(reasons, score, 10, "Double slash inside URL path (redirect trick)", "medium");
-  if ((url || "").length > 100)
-    score = rule(reasons, score, 8, `Unusually long URL (${url.length} characters)`, "low");
-  if (host.includes("https") || (parsed.path || "").toLowerCase().includes("http"))
-    score = rule(reasons, score, 12, "'http(s)' token embedded in domain/path to fake security", "medium");
+    if ((url || "").length > 100)
+      score = rule(reasons, score, 8, `Unusually long URL (${url.length} characters)`, "low");
+    if (host.includes("https") || (parsed.path || "").toLowerCase().includes("http"))
+      score = rule(reasons, score, 12, "'http(s)' token embedded in domain/path to fake security", "medium");
+  }
 
   if (trusted && reasons.length === 0)
     reasons.push({ rule: `Registered domain '${reg}' is on the trusted allowlist`,
@@ -431,7 +445,7 @@ export function scanUrl(model, url) {
   const t0 = Date.now();
   const { p, perModel } = mlScoreUrl(model, url);
   const heur = heuristicsUrl(url);
-  const ml = heur.trusted ? Math.min(p, 0.25) : p;
+  const ml = heur.trusted ? Math.min(p, 0.15) : p;
   const risk = Math.round((ML_WEIGHT * ml * 100 + HEURISTIC_WEIGHT * heur.score) * 100) / 100;
   return {
     type: "url", input: url, verdict: verdictOf(risk), risk_score: risk,

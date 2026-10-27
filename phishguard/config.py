@@ -34,12 +34,21 @@ THRESHOLD_SUSPICIOUS = 40.0
 
 # ---------------------------------------------------------------- misc
 TRUSTED_DOMAINS = {
-    "google.com", "youtube.com", "facebook.com", "microsoft.com", "apple.com",
-    "amazon.com", "wikipedia.org", "github.com", "linkedin.com", "twitter.com",
+    # global
+    "google.com", "google.co.in", "youtube.com", "facebook.com",
+    "microsoft.com", "bing.com", "msn.com", "apple.com", "amazon.com",
+    "amazon.in", "wikipedia.org", "github.com", "linkedin.com", "twitter.com",
     "x.com", "instagram.com", "netflix.com", "office.com", "live.com",
-    "yahoo.com", "paypal.com", "dropbox.com", "adobe.com", "zoom.us",
-    "whatsapp.com", "telegram.org", "reddit.com", "stackoverflow.com",
-    "mozilla.org", "cloudflare.com", "openai.com", "anthropic.com",
-    "flipkart.com", "irctc.co.in", "sbi.co.in", "onlinesbi.sbi", "hdfcbank.com",
-    "icicibank.com", "gov.in", "nic.in", "ac.in", "edu",
+    "yahoo.com", "duckduckgo.com", "paypal.com", "dropbox.com", "adobe.com",
+    "zoom.us", "whatsapp.com", "telegram.org", "reddit.com",
+    "stackoverflow.com", "mozilla.org", "cloudflare.com", "openai.com",
+    "chatgpt.com", "anthropic.com", "claude.ai", "spotify.com",
+    "discord.com", "slack.com", "canva.com", "ebay.com",
+    # India
+    "flipkart.com", "irctc.co.in", "rbi.org.in", "npci.org.in",
+    "sbi.co.in", "onlinesbi.sbi", "hdfcbank.com", "icicibank.com",
+    "axisbank.com", "kotak.com", "pnbindia.in",
+    # restricted registries: only verified institutions can register here.
+    # bank.in is the RBI/NPCI-mandated domain space for Indian banks (2025+).
+    "bank.in", "fin.in", "gov.in", "nic.in", "ac.in", "edu",
 }
