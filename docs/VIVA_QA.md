@@ -114,6 +114,20 @@ pruned model is re-evaluated on the held-out test set (URL 98.49%, email
 On-device inference is also the privacy feature: no URL or email ever
 leaves the browser.
 
+### 14c. How do you avoid false positives without a server-side reputation API?
+Three-tier domain trust, computed offline. Registered domains are parsed
+with the full Mozilla Public Suffix List (correct for every TLD, including
+wildcard and exception rules and multi-tenant suffixes like github.io).
+The world's top-1M most-visited registered domains (Chrome UX Report) are
+compressed into a 1.4 MB Bloom filter — ~15 bits per domain, k=10 hashes,
+≈0.1% false-positive rate — giving O(1) reputation lookup with zero
+network calls. Curated/popular tiers suppress the noisy pattern rules and
+cap the ML probability; unknown domains get full scrutiny plus a
+"not-popular" signal. Brand/keyword rules read only host+path, never the
+query string, so search queries can't trip the detector. A Bloom "maybe"
+can mistakenly soften an unknown domain ≈1 time in 1000 — structural
+rules still apply there, and the trade-off is documented.
+
 ### 15. Could an attacker evade PhishGuard?
 Adversarial evasion is possible against any static classifier — e.g.
 hosting on a reputable compromised domain. Mitigations: ensemble of

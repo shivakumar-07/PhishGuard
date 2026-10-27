@@ -108,11 +108,11 @@ All figures are on held-out, stratified test sets never seen in training.
 
 | Model | Accuracy | Precision | Recall | F1 | ROC-AUC |
 |---|---|---|---|---|---|
-| logistic regression | 0.9796 | 0.9777 | 0.8940 | 0.9340 | 0.9944 |
-| svm linear | 0.9863 | 0.9749 | 0.9396 | 0.9569 | 0.9962 |
-| random forest | 0.9334 | 0.9254 | 0.6392 | 0.7561 | 0.9631 |
-| decision tree | 0.9164 | 0.8638 | 0.5732 | 0.6891 | 0.9166 |
-| **hybrid ensemble** | **0.9860** | **0.9797** | **0.9329** | **0.9557** | **0.9960** |
+| logistic regression | 0.9931 | 0.9916 | 0.9953 | 0.9935 | 0.9996 |
+| svm linear | 0.9940 | 0.9945 | 0.9942 | 0.9943 | 0.9997 |
+| random forest | 0.9332 | 0.9253 | 0.6378 | 0.7551 | 0.9632 |
+| decision tree | 0.9433 | 0.9343 | 0.9596 | 0.9467 | 0.9391 |
+| **hybrid ensemble** | **0.9933** | **0.9939** | **0.9933** | **0.9936** | **0.9996** |
 
 ### 5.2 Email detection (6,546 test emails)
 

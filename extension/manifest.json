@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PhishGuard — Phishing Protection",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "On-device AI that checks every link before you trust it. Blocks phishing pages, flags dangerous links, scans suspicious emails — 100% offline, nothing ever leaves your browser.",
   "permissions": ["tabs", "storage", "contextMenus"],
   "host_permissions": ["http://*/*", "https://*/*"],

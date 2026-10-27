@@ -3,15 +3,18 @@
  * and answers scan requests from the popup and content scripts.
  * No network request is ever made: the ML model ships inside the extension.
  */
-import { scanUrl, scanEmail } from "./lib/engine.js";
+import { scanUrl, scanEmail, loadTrust } from "./lib/engine.js";
 
 let models = null;
 async function getModels() {
   if (!models) {
-    const [u, e] = await Promise.all([
+    const [u, e, psl, bloom] = await Promise.all([
       fetch(chrome.runtime.getURL("model/url_model.json")).then((r) => r.json()),
       fetch(chrome.runtime.getURL("model/email_model.json")).then((r) => r.json()),
+      fetch(chrome.runtime.getURL("model/psl.json")).then((r) => r.json()),
+      fetch(chrome.runtime.getURL("model/topdomains.bloom")).then((r) => r.arrayBuffer()),
     ]);
+    loadTrust(psl, new Uint8Array(bloom));
     models = { url: u, email: e };
   }
   return models;

@@ -37,7 +37,7 @@ and ships two ways:
 
 | Detector | Dataset | Accuracy | Precision | Recall | F1 | ROC-AUC |
 |---|---|---|---|---|---|---|
-| **URL hybrid ensemble** | 411,242 URLs | **0.9860** | 0.9797 | 0.9329 | **0.9557** | 0.9960 |
+| **URL hybrid ensemble** | 411,242 URLs | **0.9860** | 0.9797 | 0.9326 | **0.9556** | 0.9960 |
 | **Email hybrid ensemble** | 32,726 emails | **0.9933** | 0.9939 | 0.9933 | **0.9936** | 0.9996 |
 
 The weighted ensemble posts the **highest precision of any model on URLs**
@@ -50,7 +50,7 @@ tables, confusion matrices, ROC curves and feature importances are in
 ![URL model comparison](results/url_model_comparison.png)
 
 On-device extension models (exported + re-evaluated on the same held-out
-sets): URL **98.49%** acc / F1 0.9522 · email **99.30%** acc / F1 0.9933 —
+sets): URL **98.48%** acc / F1 0.9520 · email **99.30%** acc / F1 0.9933 —
 see `results/extension_metrics.json` and the JS↔Python parity test
 (`node extension/tests/parity_test.mjs`, agreement ≈ 1e-6).
 
@@ -104,9 +104,38 @@ python scripts/demo_requests.py
    baseline; validation-weighted soft-voting ensemble; full evaluation
    suite.
 4. **Real-time prediction** — `risk = 0.75·ML + 0.25·rules`, three-band
-   verdict (safe / suspicious / phishing), trusted-domain allowlist.
+   verdict (safe / suspicious / phishing), three-tier global domain trust.
 5. **Dashboard & alerts** — FastAPI + SQLite + WebSocket live feed +
    Chart.js (vendored, works offline).
+
+### Global domain trust (v2)
+
+False positives are what make users uninstall security tools, so v2 adds
+a reputation layer that works for **every domain on the internet**, still
+fully offline:
+
+- **Public Suffix List** (Mozilla, ~10,400 rules) — registered domains are
+  parsed correctly for every TLD on earth: `co.uk`, `com.au`, `bank.in`,
+  `github.io` user sites, wildcard and exception rules included.
+- **Top-1M reputation in 1.4 MB** — the registered domains of the world's
+  1,000,000 most-visited sites (Chrome UX Report) packed into a Bloom
+  filter (FNV-1a + djb2 double hashing, k=10, FP≈0.1%): O(1) lookup, zero
+  network.
+- **Three trust tiers** decide scrutiny: *curated* (verified banks and
+  restricted registries such as RBI's `.bank.in`) → pattern rules off,
+  strong benign prior; *popular* (top-1M) → noisy rules off, softer prior;
+  *unknown* → full rules **plus** a "not among the top-1M sites" signal,
+  because fresh phishing domains are never popular.
+- **Query strings are never evidence** — brand/keyword rules examine only
+  attacker-controlled URL parts (host + path), so a search for
+  "sbi online login" can't trip the detector on any search engine.
+- Structural attacks (raw-IP host, punycode look-alikes, `@` tricks,
+  non-standard ports) stay active on **every** tier — reputation never
+  silences them.
+- **ML never blocks alone** — a hard "phishing" block requires the rule
+  layer to corroborate the model; an ML-only alarm on an unknown domain
+  becomes a visible "suspicious" warning instead. Both detection layers
+  must agree before a page is taken away from the user.
 
 Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) ·
 Project report: [`docs/REPORT.md`](docs/REPORT.md) ·

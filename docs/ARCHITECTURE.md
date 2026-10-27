@@ -80,6 +80,23 @@ TF-IDF tokens pushing the LR member's decision — full explainability.
   console with risk dial and evidence panel, verdict tiles, activity
   timeline, verdict distribution, live threat feed.
 
+### Stage 5½ — Global domain trust (`phishguard/trust.py`, `scripts/build_trust_assets.py`)
+A reputation layer that generalises the allowlist to the whole internet,
+offline. `build_trust_assets.py` compiles two research-grade datasets:
+the **Mozilla Public Suffix List** (exact/wildcard/exception rules →
+`psl.json`, correct registered-domain parsing for every TLD) and the
+**Chrome UX Report global top-1M origins**, reduced to 760K unique
+registered domains and packed into a **1.4 MB Bloom filter**
+(`topdomains.bloom`; FNV-1a + djb2|1 Kirsch-Mitzenmacher double hashing,
+k=10, FP≈0.1%). At scan time the registered domain maps to a tier:
+*curated* (verified critical domains, restricted registries — ML capped
+at 0.15, pattern rules off), *popular* (top-1M — ML capped at 0.30,
+noisy rules off), or *unknown* (full rules + a "not in the top-1M"
+signal). Brand/keyword rules read host+path only — query strings are
+user content. The same two asset files ship byte-identical in the
+Python package and the browser extension, and a cross-language parity
+test covers PSL wildcards, exceptions, IDN hosts and Bloom lookups.
+
 ### Stage 6 — On-device delivery (`extension/`, `phishguard/export/`)
 The linear members (LR + both calibrated SVM folds) compress to pure dot
 products, so `export_js_model.py` prunes the TF-IDF vocabulary to the

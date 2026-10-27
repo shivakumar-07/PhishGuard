@@ -103,11 +103,26 @@ def predict_url(url: str, explain: bool = True) -> dict:
 
     heur = heuristics.score_url(url)
 
-    # trusted allowlisted domains get a strong benign prior
-    if heur["trusted_domain"]:
+    # tiered benign prior: verified domains strongest, top-1M softer
+    if heur["tier"] == "curated":
         ml_prob = min(ml_prob, 0.15)
+    elif heur["tier"] == "popular":
+        ml_prob = min(ml_prob, 0.30)
 
     risk = _blend(ml_prob, heur["score"])
+
+    # Two-factor verdict: a hard "phishing" block requires the rule layer to
+    # corroborate the ML (any evidence beyond the not-popular signal). An
+    # ML-only alarm on an unknown domain becomes a "suspicious" warning —
+    # defense against training-distribution artifacts on small legit sites.
+    if (heur["tier"] == "unknown" and heur["score"] <= 8
+            and risk >= config.THRESHOLD_PHISHING):
+        risk = 64.0
+        heur["reasons"].append({
+            "rule": "ML model is alarmed but no rule evidence corroborates it — "
+                    "shown as a warning, never blocked on ML alone",
+            "severity": "medium", "weight": 0})
+
     result = {
         "type": "url",
         "input": url,
@@ -118,6 +133,7 @@ def predict_url(url: str, explain: bool = True) -> dict:
         "per_model": per_model,
         "reasons": heur["reasons"],
         "trusted_domain": heur["trusted_domain"],
+        "trust_tier": heur["tier"],
         "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
     }
     if explain:

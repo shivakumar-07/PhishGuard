@@ -4,12 +4,14 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mlScoreUrl, mlScoreEmail, scanUrl, scanEmail } from "../lib/engine.js";
+import { mlScoreUrl, mlScoreEmail, scanUrl, scanEmail, loadTrust } from "../lib/engine.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const urlModel = JSON.parse(readFileSync(join(here, "../model/url_model.json")));
 const emailModel = JSON.parse(readFileSync(join(here, "../model/email_model.json")));
 const samples = JSON.parse(readFileSync(join(here, "../model/parity_samples.json")));
+loadTrust(JSON.parse(readFileSync(join(here, "../model/psl.json"))),
+          new Uint8Array(readFileSync(join(here, "../model/topdomains.bloom"))));
 
 const TOL = 2e-3;
 let worstU = 0, worstE = 0, fails = 0;

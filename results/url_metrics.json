@@ -15,48 +15,48 @@
   "models": [
     {
       "model": "logistic_regression",
-      "accuracy": 0.9796,
-      "precision": 0.9777,
-      "recall": 0.894,
-      "f1": 0.934,
+      "accuracy": 0.9797,
+      "precision": 0.978,
+      "recall": 0.8943,
+      "f1": 0.9343,
       "roc_auc": 0.9944,
-      "latency_ms_per_sample": 0.1038
+      "latency_ms_per_sample": 0.099
     },
     {
       "model": "svm_linear",
       "accuracy": 0.9863,
-      "precision": 0.9749,
+      "precision": 0.9748,
       "recall": 0.9396,
       "f1": 0.9569,
       "roc_auc": 0.9962,
-      "latency_ms_per_sample": 0.1027
+      "latency_ms_per_sample": 0.0894
     },
     {
       "model": "random_forest",
-      "accuracy": 0.9334,
-      "precision": 0.9254,
-      "recall": 0.6392,
-      "f1": 0.7561,
-      "roc_auc": 0.9631,
-      "latency_ms_per_sample": 0.0081
+      "accuracy": 0.9332,
+      "precision": 0.9253,
+      "recall": 0.6378,
+      "f1": 0.7551,
+      "roc_auc": 0.9632,
+      "latency_ms_per_sample": 0.0078
     },
     {
       "model": "decision_tree",
       "accuracy": 0.9164,
-      "precision": 0.8638,
-      "recall": 0.5732,
-      "f1": 0.6891,
-      "roc_auc": 0.9166,
+      "precision": 0.8618,
+      "recall": 0.575,
+      "f1": 0.6898,
+      "roc_auc": 0.9157,
       "latency_ms_per_sample": 0.0002
     },
     {
       "model": "hybrid_ensemble",
       "accuracy": 0.986,
       "precision": 0.9797,
-      "recall": 0.9329,
-      "f1": 0.9557,
+      "recall": 0.9326,
+      "f1": 0.9556,
       "roc_auc": 0.996,
-      "latency_ms_per_sample": 0.2035
+      "latency_ms_per_sample": 0.1839
     }
   ],
   "ensemble_confusion_matrix": [
@@ -65,54 +65,54 @@
       257
     ],
     [
-      892,
-      12396
+      895,
+      12393
     ]
   ],
   "feature_importances": [
     {
       "feature": "path_length",
-      "importance": 0.1062
+      "importance": 0.1095
     },
     {
       "feature": "num_slashes",
-      "importance": 0.0771
+      "importance": 0.0767
     },
     {
       "feature": "num_digits",
-      "importance": 0.0751
+      "importance": 0.0754
     },
     {
       "feature": "num_suspicious_words",
-      "importance": 0.0677
+      "importance": 0.0685
     },
     {
       "feature": "num_dots",
-      "importance": 0.0636
+      "importance": 0.0628
     },
     {
       "feature": "letter_ratio",
-      "importance": 0.0624
+      "importance": 0.0627
     },
     {
       "feature": "digit_ratio",
-      "importance": 0.0589
+      "importance": 0.0588
     },
     {
       "feature": "url_length",
-      "importance": 0.057
-    },
-    {
-      "feature": "url_entropy",
-      "importance": 0.0544
+      "importance": 0.0561
     },
     {
       "feature": "brand_outside_domain",
       "importance": 0.0539
     },
     {
+      "feature": "url_entropy",
+      "importance": 0.0531
+    },
+    {
       "feature": "hostname_entropy",
-      "importance": 0.0512
+      "importance": 0.0502
     },
     {
       "feature": "hostname_length",
@@ -120,63 +120,63 @@
     },
     {
       "feature": "num_hyphens",
-      "importance": 0.0475
+      "importance": 0.0479
     },
     {
       "feature": "has_ip_host",
-      "importance": 0.0278
+      "importance": 0.0271
     },
     {
       "feature": "num_underscores",
-      "importance": 0.0246
+      "importance": 0.0251
     },
     {
       "feature": "suspicious_tld",
-      "importance": 0.0238
+      "importance": 0.0234
     },
     {
       "feature": "query_length",
-      "importance": 0.0235
+      "importance": 0.0233
     },
     {
       "feature": "num_subdomains",
-      "importance": 0.0203
+      "importance": 0.0199
     },
     {
       "feature": "num_equals",
-      "importance": 0.0122
+      "importance": 0.0125
     },
     {
       "feature": "num_question_marks",
-      "importance": 0.0099
+      "importance": 0.0101
     },
     {
       "feature": "hyphen_in_domain",
-      "importance": 0.0088
+      "importance": 0.0078
     },
     {
       "feature": "has_at_symbol",
-      "importance": 0.0052
+      "importance": 0.0056
     },
     {
       "feature": "num_at",
-      "importance": 0.0049
-    },
-    {
-      "feature": "num_ampersands",
-      "importance": 0.0038
+      "importance": 0.0046
     },
     {
       "feature": "num_hex_encodings",
-      "importance": 0.0038
+      "importance": 0.004
+    },
+    {
+      "feature": "num_ampersands",
+      "importance": 0.0037
     },
     {
       "feature": "num_percent",
-      "importance": 0.0036
+      "importance": 0.0035
     },
     {
       "feature": "has_port",
-      "importance": 0.0025
+      "importance": 0.003
     },
     {
       "feature": "is_shortened",
@@ -184,7 +184,7 @@
     },
     {
       "feature": "has_https_token",
-      "importance": 0.0005
+      "importance": 0.0006
     },
     {
       "feature": "has_double_slash_path",

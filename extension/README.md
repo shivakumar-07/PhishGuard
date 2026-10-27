@@ -7,9 +7,17 @@ SVM over 40,000 learned character patterns and 30 lexical features, plus the
 16-rule heuristic layer — compiled into 2.7 MB of JSON and evaluated in
 about **1 millisecond of JavaScript**. No server, no API key, no telemetry.
 
+v2 adds **global domain trust, still fully offline**: the Mozilla Public
+Suffix List for correct registered-domain parsing on every TLD, and the
+world's 1M most-visited registered domains (Chrome UX Report) packed into
+a 1.4 MB Bloom filter. Verified and popular domains get a benign prior and
+freedom from noisy pattern rules; unknown domains get full scrutiny plus a
+"not a top-1M site" signal. Query strings are never treated as evidence,
+so searching "sbi online login" can't trip the detector on any site.
+
 | On-device model | Accuracy | Precision | Recall | F1 | ROC-AUC |
 |---|---|---|---|---|---|
-| URL detector | 98.49% | 0.9731 | 0.9322 | 0.9522 | 0.9958 |
+| URL detector | 98.48% | 0.9730 | 0.9319 | 0.9520 | 0.9958 |
 | Email detector | 99.30% | 0.9933 | 0.9933 | 0.9933 | 0.9996 |
 
 *(measured on the project's held-out test sets — 82,249 URLs / 6,546 emails —

@@ -1,21 +1,32 @@
-"""Heuristic rule layer.
+"""Heuristic rule layer with global three-tier domain trust.
 
-A transparent, explainable rule engine that runs *alongside* the ML ensemble.
-Each triggered rule contributes a weighted score (0-100 scale) and a
-human-readable reason shown on the dashboard. The final verdict blends
-ML probability and heuristic score (see config.ML_WEIGHT).
+A transparent, explainable rule engine that runs *alongside* the ML
+ensemble. Each triggered rule contributes a weighted score (0-100) and a
+human-readable reason shown on the dashboard / extension.
+
+Trust tiers (phishguard.trust — PSL registered domains + top-1M Bloom):
+  curated  — verified critical domains / restricted registries:
+             pattern rules suppressed entirely
+  popular  — top-1M most-visited registered domains: noisy pattern rules
+             (keywords, length, subdomains, TLD) suppressed; brand
+             impersonation and structural rules stay active
+  unknown  — everything else: all rules, plus a "not a top-1M domain"
+             signal (fresh phishing domains are never popular)
+
+Brand and keyword rules examine only attacker-controlled parts of the URL
+(host + path) — never the query string, which carries user content such
+as search terms ("?q=sbi+online+login").
 """
 from __future__ import annotations
 
 import re
 from urllib.parse import urlparse
 
-from phishguard import config
+from phishguard import trust
 from phishguard.features.email_features import email_structural_signals
 from phishguard.features.url_features import (SHORTENER_DOMAINS,
                                               SUSPICIOUS_TLDS,
                                               SUSPICIOUS_WORDS, BRAND_NAMES,
-                                              _registered_domain,
                                               normalize_url)
 
 _IP_HOST_RE = re.compile(r"^(\d{1,3}\.){3}\d{1,3}$")
@@ -27,7 +38,7 @@ def _rule(reasons: list, score: float, weight: float, reason: str, severity: str
 
 
 def score_url(url: str) -> dict:
-    """Return {'score': 0-100, 'reasons': [...], 'trusted_domain': bool}."""
+    """Return {'score': 0-100, 'reasons': [...], 'tier': ..., 'trusted_domain': bool}."""
     reasons: list[dict] = []
     score = 0.0
 
@@ -43,29 +54,39 @@ def score_url(url: str) -> dict:
         port = parsed.port
     except ValueError:
         port = -1
-    reg = _registered_domain(host)
+
+    path = parsed.path or ""
+    reg = trust.registered_domain(host)
     tld = host.rsplit(".", 1)[-1] if "." in host else ""
-    lower = url.lower()
+    tier = trust.trust_tier(reg)
+    host_path = (host + " " + path).lower()
 
-    trusted = reg in config.TRUSTED_DOMAINS or any(
-        reg.endswith("." + t) or reg == t for t in config.TRUSTED_DOMAINS)
-
-    # structural rules — always active, even on trusted domains
+    # ---- structural rules: always active, every tier --------------------
     if _IP_HOST_RE.match(host):
         score = _rule(reasons, score, 35, "URL uses a raw IP address instead of a domain name", "high")
     if host.startswith("xn--") or ".xn--" in host:
         score = _rule(reasons, score, 30, "Punycode-encoded (lookalike) domain", "high")
-    if "@" in url:
+    if "@" in (url or ""):
         score = _rule(reasons, score, 25, "'@' symbol in URL — browser ignores everything before it", "high")
     if port not in (None, 80, 443):
         score = _rule(reasons, score, 15, f"Non-standard port {port if port != -1 else '(malformed)'}", "medium")
-    if "//" in (parsed.path or ""):
+    if "//" in path:
         score = _rule(reasons, score, 10, "Double slash inside URL path (redirect trick)", "medium")
 
-    # pattern rules — suppressed on trusted registered domains, where search
-    # queries and tracking parameters legitimately contain keywords, brand
-    # names and very long URLs (e.g. a Bing search for "sbi online login")
-    if not trusted:
+    # ---- brand impersonation: active unless curated ----------------------
+    # host+path only — the query string carries user content (search terms)
+    if tier != "curated":
+        sub_part = host[: -len(reg)].rstrip(".") if reg and host.endswith(reg) else host
+        sub_and_path = (sub_part + " " + path).lower()
+        for brand in BRAND_NAMES:
+            if brand not in reg and brand in sub_and_path:
+                score = _rule(reasons, score, 30,
+                              f"Brand name '{brand}' outside the registered domain (possible impersonation)",
+                              "high")
+                break
+
+    # ---- pattern rules: unknown domains only ------------------------------
+    if tier == "unknown":
         if any(host == s or host.endswith("." + s) for s in SHORTENER_DOMAINS):
             score = _rule(reasons, score, 15, "Link-shortener domain hides the real destination", "medium")
         if tld in SUSPICIOUS_TLDS:
@@ -75,31 +96,30 @@ def score_url(url: str) -> dict:
         if "-" in reg.split(".")[0]:
             score = _rule(reasons, score, 8, "Hyphenated registered domain", "low")
 
-        sus_hits = [w for w in SUSPICIOUS_WORDS if w in lower]
+        sus_hits = [w for w in SUSPICIOUS_WORDS if w in host_path]
         if len(sus_hits) >= 2:
             score = _rule(reasons, score, 15,
                           f"Multiple phishing keywords in URL: {', '.join(sus_hits[:4])}", "medium")
         elif len(sus_hits) == 1:
             score = _rule(reasons, score, 7, f"Phishing keyword in URL: '{sus_hits[0]}'", "low")
 
-        sub_and_path = (host[: -len(reg)] + " " + (parsed.path or "") + " " + (parsed.query or "")).lower()
-        for brand in BRAND_NAMES:
-            if brand not in reg and brand in sub_and_path:
-                score = _rule(reasons, score, 30,
-                              f"Brand name '{brand}' outside the registered domain (possible impersonation)",
-                              "high")
-                break
-
-        if len(url) > 100:
+        if len(url or "") > 100:
             score = _rule(reasons, score, 8, f"Unusually long URL ({len(url)} characters)", "low")
-        if ("https" in host) or ("http" in (parsed.path or "").lower()):
+        if ("https" in host) or ("http" in path.lower()):
             score = _rule(reasons, score, 12, "'http(s)' token embedded in domain/path to fake security", "medium")
+        if "." in reg:
+            score = _rule(reasons, score, 8,
+                          "Domain is not among the 1M most-visited websites (new or little-known)", "low")
 
-    if trusted and not reasons:
-        reasons.append({"rule": f"Registered domain '{reg}' is on the trusted allowlist",
+    if tier == "curated" and not reasons:
+        reasons.append({"rule": f"'{reg}' is on the verified trusted allowlist",
+                        "severity": "info", "weight": 0})
+    elif tier == "popular" and not reasons:
+        reasons.append({"rule": f"'{reg}' is among the world's 1M most-visited websites",
                         "severity": "info", "weight": 0})
 
-    return {"score": min(score, 100.0), "reasons": reasons, "trusted_domain": trusted}
+    return {"score": min(score, 100.0), "reasons": reasons, "tier": tier,
+            "trusted_domain": tier != "unknown"}
 
 
 def score_email(subject: str, body: str, sender: str = "") -> dict:

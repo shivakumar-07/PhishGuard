@@ -106,13 +106,81 @@ export function parseUrl(norm) {
   return { hostname, port, path, query };
 }
 
+// ------------------------------------------------------------ global trust
+// Public Suffix List + top-1M Bloom filter, loaded once via loadTrust().
+let PSL = null;    // { r: Set, w: Set, e: Set }
+let BLOOM = null;  // { m, k, bitmap: Uint8Array }
+const IPV4_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
+
+export function loadTrust(pslJson, bloomBytes) {
+  PSL = { r: new Set(pslJson.r), w: new Set(pslJson.w), e: new Set(pslJson.e) };
+  const dv = new DataView(bloomBytes.buffer, bloomBytes.byteOffset, 16);
+  BLOOM = { m: dv.getUint32(4, true), k: dv.getUint32(8, true),
+            bitmap: bloomBytes.subarray(16) };
+}
+
+function publicSuffixLabels(labels) {
+  const n = labels.length;
+  let best = 0;
+  for (let i = 0; i < n; i++) {
+    const cand = labels.slice(i).join(".");
+    if (PSL.e.has(cand)) return n - i - 1;
+    if (PSL.r.has(cand) && n - i > best) best = n - i;
+    if (i + 1 < n && PSL.w.has(labels.slice(i + 1).join(".")) && n - i > best) best = n - i;
+  }
+  return best || 1;
+}
+
 export function registeredDomain(hostname) {
-  const parts = hostname.split(".");
-  if (parts.length <= 2) return hostname;
-  const ccSlds = new Set(["co", "com", "org", "net", "gov", "ac", "edu", "bank", "fin"]);
-  if (ccSlds.has(parts[parts.length - 2]) && parts[parts.length - 1].length === 2)
-    return parts.slice(-3).join(".");
-  return parts.slice(-2).join(".");
+  let host = (hostname || "").toLowerCase().replace(/\.+$/, "");
+  if (!host || IPV4_RE.test(host)) return host;
+  if (!PSL) { // legacy fallback when trust data is unavailable
+    const parts = host.split(".");
+    if (parts.length <= 2) return host;
+    const cc = new Set(["co", "com", "org", "net", "gov", "ac", "edu", "bank", "fin"]);
+    if (cc.has(parts[parts.length - 2]) && parts[parts.length - 1].length === 2)
+      return parts.slice(-3).join(".");
+    return parts.slice(-2).join(".");
+  }
+  const labels = host.split(".");
+  const psN = publicSuffixLabels(labels);
+  if (labels.length <= psN) return host;
+  return labels.slice(-(psN + 1)).join(".");
+}
+
+function fnv1a(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i) & 0xff;
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h >>> 0;
+}
+
+function djb2(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(h, 33) + (s.charCodeAt(i) & 0xff)) >>> 0;
+  }
+  return h >>> 0;
+}
+
+export function isPopular(reg) {
+  if (!BLOOM || !reg) return false;
+  const h1 = fnv1a(reg);
+  const h2 = (djb2(reg) | 1) >>> 0; // >>>0: keep unsigned (|1 coerces to signed int32)
+  for (let i = 0; i < BLOOM.k; i++) {
+    const idx = (h1 + i * h2) % BLOOM.m;
+    if (!(BLOOM.bitmap[idx >> 3] & (1 << (idx & 7)))) return false;
+  }
+  return true;
+}
+
+export function trustTier(reg) {
+  if (TRUSTED_DOMAINS.has(reg)) return "curated";
+  for (const t of TRUSTED_DOMAINS) if (reg.endsWith("." + t)) return "curated";
+  if (isPopular(reg)) return "popular";
+  return "unknown";
 }
 
 function entropy(s) {
@@ -315,14 +383,13 @@ export function heuristicsUrl(url) {
   let score = 0;
   const parsed = parseUrl(normalizeUrl(url));
   const host = parsed.hostname || "";
+  const path = parsed.path || "";
   const reg = registeredDomain(host);
   const tld = host.includes(".") ? host.slice(host.lastIndexOf(".") + 1) : "";
-  const lower = (url || "").toLowerCase();
+  const tier = trustTier(reg);
+  const hostPath = (host + " " + path).toLowerCase();
 
-  const trusted = TRUSTED_DOMAINS.has(reg) ||
-    [...TRUSTED_DOMAINS].some((t) => reg.endsWith("." + t) || reg === t);
-
-  // structural rules — always active, even on trusted domains
+  // ---- structural rules: always active, every tier --------------------
   if (IP_RE.test(host))
     score = rule(reasons, score, 35, "URL uses a raw IP address instead of a domain name", "high");
   if (host.startsWith("xn--") || host.includes(".xn--"))
@@ -331,13 +398,26 @@ export function heuristicsUrl(url) {
     score = rule(reasons, score, 25, "'@' symbol in URL — browser ignores everything before it", "high");
   if (parsed.port !== null && parsed.port !== 80 && parsed.port !== 443)
     score = rule(reasons, score, 15, `Non-standard port ${parsed.port === -1 ? "(malformed)" : parsed.port}`, "medium");
-  if ((parsed.path || "").includes("//"))
+  if (path.includes("//"))
     score = rule(reasons, score, 10, "Double slash inside URL path (redirect trick)", "medium");
 
-  // pattern rules — suppressed on trusted registered domains, where search
-  // queries and tracking parameters legitimately contain keywords, brand
-  // names and very long URLs (e.g. a Bing search for "sbi online login")
-  if (!trusted) {
+  // ---- brand impersonation: active unless curated ----------------------
+  // host+path only — the query string carries user content (search terms)
+  if (tier !== "curated") {
+    const subPart = reg && host.endsWith(reg)
+      ? host.slice(0, host.length - reg.length).replace(/\.+$/, "") : host;
+    const subAndPath = (subPart + " " + path).toLowerCase();
+    for (const brand of BRAND_NAMES) {
+      if (!reg.includes(brand) && subAndPath.includes(brand)) {
+        score = rule(reasons, score, 30,
+          `Brand name '${brand}' outside the registered domain (possible impersonation)`, "high");
+        break;
+      }
+    }
+  }
+
+  // ---- pattern rules: unknown domains only ------------------------------
+  if (tier === "unknown") {
     if (SHORTENER_DOMAINS.some((s) => host === s || host.endsWith("." + s)))
       score = rule(reasons, score, 15, "Link-shortener domain hides the real destination", "medium");
     if (SUSPICIOUS_TLDS.includes(tld))
@@ -347,33 +427,29 @@ export function heuristicsUrl(url) {
     if (reg.split(".")[0].includes("-"))
       score = rule(reasons, score, 8, "Hyphenated registered domain", "low");
 
-    const hits = SUSPICIOUS_WORDS.filter((w) => lower.includes(w));
+    const hits = SUSPICIOUS_WORDS.filter((w) => hostPath.includes(w));
     if (hits.length >= 2)
       score = rule(reasons, score, 15, `Multiple phishing keywords in URL: ${hits.slice(0, 4).join(", ")}`, "medium");
     else if (hits.length === 1)
       score = rule(reasons, score, 7, `Phishing keyword in URL: '${hits[0]}'`, "low");
 
-    const subPath = (host.slice(0, Math.max(host.length - reg.length, 0)) + " " +
-                     (parsed.path || "") + " " + (parsed.query || "")).toLowerCase();
-    for (const brand of BRAND_NAMES) {
-      if (!reg.includes(brand) && subPath.includes(brand)) {
-        score = rule(reasons, score, 30,
-          `Brand name '${brand}' outside the registered domain (possible impersonation)`, "high");
-        break;
-      }
-    }
-
     if ((url || "").length > 100)
       score = rule(reasons, score, 8, `Unusually long URL (${url.length} characters)`, "low");
-    if (host.includes("https") || (parsed.path || "").toLowerCase().includes("http"))
+    if (host.includes("https") || path.toLowerCase().includes("http"))
       score = rule(reasons, score, 12, "'http(s)' token embedded in domain/path to fake security", "medium");
+    if (reg.includes("."))
+      score = rule(reasons, score, 8,
+        "Domain is not among the 1M most-visited websites (new or little-known)", "low");
   }
 
-  if (trusted && reasons.length === 0)
-    reasons.push({ rule: `Registered domain '${reg}' is on the trusted allowlist`,
+  if (tier === "curated" && reasons.length === 0)
+    reasons.push({ rule: `'${reg}' is on the verified trusted allowlist`,
+                   severity: "info", weight: 0 });
+  else if (tier === "popular" && reasons.length === 0)
+    reasons.push({ rule: `'${reg}' is among the world's 1M most-visited websites`,
                    severity: "info", weight: 0 });
 
-  return { score: Math.min(score, 100), reasons, trusted };
+  return { score: Math.min(score, 100), reasons, tier, trusted: tier !== "unknown" };
 }
 
 const URGENCY = ["urgent", "immediately", "act now", "expire", "expiring", "suspended",
@@ -445,12 +521,26 @@ export function scanUrl(model, url) {
   const t0 = Date.now();
   const { p, perModel } = mlScoreUrl(model, url);
   const heur = heuristicsUrl(url);
-  const ml = heur.trusted ? Math.min(p, 0.15) : p;
-  const risk = Math.round((ML_WEIGHT * ml * 100 + HEURISTIC_WEIGHT * heur.score) * 100) / 100;
+  let ml = p;
+  if (heur.tier === "curated") ml = Math.min(p, 0.15);
+  else if (heur.tier === "popular") ml = Math.min(p, 0.30);
+  let risk = Math.round((ML_WEIGHT * ml * 100 + HEURISTIC_WEIGHT * heur.score) * 100) / 100;
+
+  // Two-factor verdict: ML alone never hard-blocks. An unknown domain with
+  // no corroborating rule evidence is downgraded to a "suspicious" warning.
+  if (heur.tier === "unknown" && heur.score <= 8 && risk >= THRESHOLD_PHISHING) {
+    risk = 64.0;
+    heur.reasons.push({
+      rule: "ML model is alarmed but no rule evidence corroborates it — " +
+            "shown as a warning, never blocked on ML alone",
+      severity: "medium", weight: 0,
+    });
+  }
   return {
     type: "url", input: url, verdict: verdictOf(risk), risk_score: risk,
     ml_probability: Math.round(ml * 1e4) / 1e4, heuristic_score: heur.score,
     per_model: perModel, reasons: heur.reasons, trusted_domain: heur.trusted,
+    trust_tier: heur.tier,
     latency_ms: Date.now() - t0,
   };
 }

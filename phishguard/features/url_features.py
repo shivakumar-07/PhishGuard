@@ -77,14 +77,9 @@ def _entropy(s: str) -> float:
 
 
 def _registered_domain(hostname: str) -> str:
-    """Best-effort registered domain (last two labels; last three for ccSLDs)."""
-    parts = hostname.split(".")
-    if len(parts) <= 2:
-        return hostname
-    cc_slds = {"co", "com", "org", "net", "gov", "ac", "edu", "bank", "fin"}
-    if parts[-2] in cc_slds and len(parts[-1]) == 2:
-        return ".".join(parts[-3:])
-    return ".".join(parts[-2:])
+    """PSL-correct registered domain (delegates to phishguard.trust)."""
+    from phishguard.trust import registered_domain
+    return registered_domain(hostname)
 
 
 def extract_url_features(url: str) -> np.ndarray:
